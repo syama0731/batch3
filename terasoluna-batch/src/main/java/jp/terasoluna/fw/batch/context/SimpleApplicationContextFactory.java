@@ -5,10 +5,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
-public class RegardlessApplicationContextFactory extends
+public class SimpleApplicationContextFactory extends
         AbstractApplicationContextFactory {
     
-    private static final Logger logger = LoggerFactory.getLogger(RegardlessApplicationContextFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(SimpleApplicationContextFactory.class);
+    
+    public SimpleApplicationContextFactory() {
+    }
     
     @Override
     public ApplicationContext getApplicationContext(String... batchBeanFileName) {
@@ -23,11 +26,6 @@ public class RegardlessApplicationContextFactory extends
         }
 
         return ctx;
-    }
-    
-    @Override
-    public void close() {
-        // nothing to do
     }
 
 }

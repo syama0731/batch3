@@ -7,7 +7,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 public abstract class AbstractApplicationContextFactory implements
         ApplicationContextFactory {
 
-    private ApplicationContext parent;
+    private AbstractApplicationContext parent;
     
     @Override
     public void closeContext(ApplicationContext context) {
@@ -20,9 +20,7 @@ public abstract class AbstractApplicationContextFactory implements
     
     @Override 
     public void setParent(ApplicationContext parent) {
-        synchronized(parent) {
-            this.parent = parent;
-        }
+        this.parent = (AbstractApplicationContext) parent;
     }
     
     @Override
@@ -32,12 +30,7 @@ public abstract class AbstractApplicationContextFactory implements
     
     @Override
     public void close() {
-        synchronized(parent) {
-            if(parent instanceof ClassPathXmlApplicationContext) {
-                ((ClassPathXmlApplicationContext) parent).close();
-                ((ClassPathXmlApplicationContext) parent).destroy();
-            }
-        }
+        closeContext(this.parent);
     }
 
 }
