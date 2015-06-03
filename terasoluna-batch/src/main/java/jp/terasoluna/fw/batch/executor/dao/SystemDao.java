@@ -16,7 +16,9 @@
 
 package jp.terasoluna.fw.batch.executor.dao;
 
+import jp.terasoluna.fw.batch.blogic.vo.BLogicParam;
 import jp.terasoluna.fw.batch.executor.vo.*;
+
 import org.apache.ibatis.session.RowBounds;
 
 import java.sql.Date;
@@ -52,7 +54,7 @@ public interface SystemDao {
      * @param batchJobManagementParam レコードの特定条件
      * @return ジョブ管理テーブルレコード
      */
-    BatchJobData selectJob(BatchJobManagementParam batchJobManagementParam);
+    BLogicParam selectJob(BatchJobManagementParam batchJobManagementParam);
 
     /**
      * 現在時刻を取得する。

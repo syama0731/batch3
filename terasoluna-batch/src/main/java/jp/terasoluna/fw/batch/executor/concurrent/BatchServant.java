@@ -16,6 +16,10 @@
 
 package jp.terasoluna.fw.batch.executor.concurrent;
 
+import jp.terasoluna.fw.batch.blogic.BLogic;
+import jp.terasoluna.fw.batch.blogic.vo.BLogicParam;
+import jp.terasoluna.fw.batch.executor.dao.SystemDao;
+
 /**
  * バッチサーバントインタフェース。<br>
  * <br>
@@ -27,6 +31,11 @@ public interface BatchServant extends Runnable {
      * ジョブシーケンスコードを設定する
      * @param jobSequenceId the jobSequenceId to set
      */
+    @Deprecated
     void setJobSequenceId(String jobSequenceId);
+    
+    void setBLogic(BLogic blogic, BLogicParam param);
+    
+    void setSystemDao(SystemDao systemDao);
 
 }

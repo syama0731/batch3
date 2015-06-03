@@ -60,6 +60,8 @@
         <!-- postgresql -->
         <postgresql.version>9.3-1102-jdbc41</postgresql.version>
         <postgresql.jdbc.version>8.4-702.jdbc3</postgresql.jdbc.version>
+        <!-- dozer -->
+        <args4j.version>2.0.31</args4j.version>
 
         <djunit.version>0.8.5</djunit.version>
         <jcoverage.version>djunit-1.0.5</jcoverage.version>
@@ -94,7 +96,7 @@
         <repository>
             <id>terasoluna-snapshots</id>
             <name>Terasoluna Maven Snapshot Repository</name>
-            <url>http://terasoluna2-lib.rd.nttdata.co.jp:10080/maven/snapshots</url>
+            <url>http://repo.terasoluna.org/nexus/content/repositories/terasoluna-batch-snapshots</url>
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
@@ -103,7 +105,7 @@
         <repository>
             <id>terasoluna-releases</id>
             <name>Terasoluna Maven Release Repository</name>
-            <url>http://terasoluna2-lib.rd.nttdata.co.jp:10080/maven/releases</url>
+            <url>http://repo.terasoluna.org/nexus/content/repositories/terasoluna-batch-releases</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
@@ -128,11 +130,11 @@
     <modules>
         <!-- Subproject -->
         <module>../terasoluna-batch</module>
-        <module>../terasoluna-collector</module>
+<!--         <module>../terasoluna-collector</module> -->
         <module>../terasoluna-commons</module>
-        <module>../terasoluna-filedao</module>
-        <module>../terasoluna-logger</module>
-        <module>../terasoluna-validator</module>
+<!--         <module>../terasoluna-filedao</module> -->
+<!--         <module>../terasoluna-logger</module> -->
+<!--         <module>../terasoluna-validator</module> -->
     </modules>
 
     <build>
@@ -655,11 +657,11 @@ sp_cleanup.organize_imports=true
             <artifactId>mockrunner</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>jp.co.dgic</groupId>
-            <artifactId>djunit</artifactId>
-            <scope>test</scope>
-        </dependency>
+<!--         <dependency> -->
+<!--             <groupId>jp.co.dgic</groupId> -->
+<!--             <artifactId>djunit</artifactId> -->
+<!--             <scope>test</scope> -->
+<!--         </dependency> -->
     </dependencies>
 
 </project>

@@ -16,64 +16,55 @@
 
 package jp.terasoluna.fw.batch.executor.concurrent;
 
-import jp.terasoluna.fw.batch.executor.AbstractJobBatchExecutor;
-import jp.terasoluna.fw.batch.executor.vo.BLogicResult;
+import javax.inject.Inject;
 
-/**
- * バッチサーバント実装クラス。<br>
- * <br>
- * 非同期バッチエグゼキュータから呼ばれ、指定されたジョブシーケンスコードからジョブを実行する。
- * @see jp.terasoluna.fw.batch.executor.AbstractJobBatchExecutor
- */
-public class BatchServantImpl extends AbstractJobBatchExecutor implements
-                                                              BatchServant {
+import jp.terasoluna.fw.batch.blogic.BLogic;
+import jp.terasoluna.fw.batch.blogic.vo.BLogicParam;
+import jp.terasoluna.fw.batch.executor.constant.BatchJobStatusConstant;
+import jp.terasoluna.fw.batch.executor.dao.SystemDao;
+import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementUpdateParam;
 
-    /**
-     * ジョブ実行ステータス
-     */
-    private BLogicResult result = new BLogicResult();
 
-    /**
-     * ジョブシーケンスコード
-     */
-    private String jobSequenceId = null;
+public class BatchServantImpl implements BatchServant {
+    
+    private String jobSequenceId;
+    
+    private BLogic blogic;
+    
+    private BLogicParam param;
+    
+    private SystemDao systemDao;
 
     /*
      * (non-Javadoc)
      * @see java.lang.Runnable#run()
      */
     public void run() {
-        try {
-            // エラーメッセージの初期化
-            this.initDefaultErrorMessage();
-            // バッチ実行
-            this.result = this.executeBatch(this.jobSequenceId);
-        } finally {
-            closeApplicationContext(defaultApplicationContext);
-        }
+        // バッチ実行
+        Integer result = this.blogic.execute(param);
+        
+        BatchJobManagementUpdateParam batchJobManagementUpdateParam = new BatchJobManagementUpdateParam();
+        batchJobManagementUpdateParam.setBLogicAppStatus(result.toString());
+        batchJobManagementUpdateParam.setJobSequenceId(param.getJobSequenceId());
+        batchJobManagementUpdateParam.setCurAppStatus(BatchJobStatusConstant.FINISHED_STATUS);
+        systemDao.updateJobTable(batchJobManagementUpdateParam);
     }
 
-    /**
-     * ジョブシーケンスコード
-     * @return the jobSequenceId
-     */
-    public String getJobSequenceId() {
-        return jobSequenceId;
-    }
-
-    /*
-     * (non-Javadoc)
-     * @see jp.terasoluna.fw.batch.executor.concurrent.BatchServant#setJobSequenceId(java.lang.String)
-     */
+    @Override
     public void setJobSequenceId(String jobSequenceId) {
         this.jobSequenceId = jobSequenceId;
+        
+        // ジョブ管理テーブルからBLogicとBLogicParamを取得し、セットする
     }
 
-    /**
-     * ジョブ実行ステータス
-     * @return the result
-     */
-    public BLogicResult getResult() {
-        return result;
+    @Override
+    public void setBLogic(BLogic blogic, BLogicParam param) {
+        this.blogic = blogic;
+        
+    }
+
+    @Override
+    public void setSystemDao(SystemDao systemDao) {
+        this.systemDao = systemDao;
     }
 }

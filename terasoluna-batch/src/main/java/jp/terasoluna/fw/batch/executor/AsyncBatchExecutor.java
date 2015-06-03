@@ -433,13 +433,11 @@ public class AsyncBatchExecutor extends AbstractJobBatchExecutor {
             do {
                 // ジョブリストから1件のみ取得（実行スレッドに空きがある場合のみ取得する）
                 List<BatchJobListResult> jobList = null;
-                if (checkTaskQueue(taskExecutor)) {
-                    if (jobAppCd == null) {
-                        jobList = JobUtil.selectJobList(systemDao, 0, 1);
-                    } else {
-                        jobList = JobUtil.selectJobList(jobAppCd, systemDao, 0,
-                                1);
-                    }
+                if (jobAppCd == null) {
+                    jobList = JobUtil.selectJobList(systemDao, 0, 1);
+                } else {
+                    jobList = JobUtil.selectJobList(jobAppCd, systemDao, 0,
+                            1);
                 }
 
                 if (jobList != null && !jobList.isEmpty()) {
@@ -457,16 +455,12 @@ public class AsyncBatchExecutor extends AbstractJobBatchExecutor {
                             logOutputTaskExecutor(LOGGER, taskExecutor);
                         }
 
-                        // 実行スレッドに空きがあればバッチ処理実行
-                        if (checkTaskQueue(taskExecutor)) {
-
-                            // バッチ処理実行
-                            boolean executeResult = executeJob(executor, ctx,
-                                    taskExecutor, batchTaskServantName,
-                                    batchJobListResult);
-                            if (!executeResult) {
-                                break;
-                            }
+                        // バッチ処理実行
+                        boolean executeResult = executeJob(executor, ctx,
+                                taskExecutor, batchTaskServantName,
+                                batchJobListResult);
+                        if (!executeResult) {
+                            break;
                         }
                     }
                 }
@@ -672,46 +666,6 @@ public class AsyncBatchExecutor extends AbstractJobBatchExecutor {
             }
         }
         return status;
-    }
-
-    /**
-     * タスクエグゼキュータに空きがあるかチェック
-     * @param taskExecutor タスクエグゼキュータ
-     * @return 空きの有無
-     */
-    protected static boolean checkTaskQueue(ThreadPoolTaskExecutor taskExecutor) {
-        int maxPoolSize = 0;
-        int activeCount = 0;
-
-        if (taskExecutor != null) {
-            activeCount = taskExecutor.getActiveCount();
-            maxPoolSize = taskExecutor.getMaxPoolSize();
-
-            // スレッド空き数が閾値以下の場合はウェイト
-            if ((maxPoolSize - activeCount) <= availableThreadThresholdCount) {
-                // スリープ時間待つ
-                try {
-                    Thread.sleep(availableThreadThresholdWait);
-                } catch (InterruptedException e1) {
-                    // なにもしない
-                }
-            }
-
-            // スレッドの空きチェック
-            if (activeCount < maxPoolSize) {
-                // 空きあり
-                return true;
-            }
-            // スレッドの空きチェック
-            if (taskExecutor.getThreadPoolExecutor().getQueue()
-                    .remainingCapacity() > 0) {
-                // 空きあり
-                return true;
-            }
-        }
-
-        // 空きなし
-        return false;
     }
 
     /**
