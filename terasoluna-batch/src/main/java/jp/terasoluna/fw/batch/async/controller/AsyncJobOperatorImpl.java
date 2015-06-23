@@ -1,0 +1,72 @@
+package jp.terasoluna.fw.batch.async.controller;
+
+import jp.terasoluna.fw.batch.async.repository.BatchJobDataResolver;
+import jp.terasoluna.fw.batch.executor.vo.BatchJobListResult;
+import jp.terasoluna.fw.logger.TLogger;
+import jp.terasoluna.fw.util.PropertyUtil;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
+
+import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
+
+@Controller("asyncJobOperator")
+public class AsyncJobOperatorImpl implements AsyncJobOperator {
+
+    private static final TLogger LOGGER = TLogger.getLogger(AsyncJobOperatorImpl.class);
+
+    private final long jobIntervalTime;
+
+    private static final long DEFAULT_JOB_INTERVAL_TIME = 1000;
+
+    public AsyncJobOperatorImpl() {
+        this.jobIntervalTime = getPollingIntervalTime();
+    }
+
+    @Resource
+    protected BatchJobDataResolver batchJobDataResolver;
+
+    @Resource
+    protected AsyncJobLauncher asyncJobLauncher;
+
+    @Resource
+    protected AsyncBatchStopper asyncBatchStopper;
+
+    @Resource
+    protected ExceptionStatusHandler exceptionStatusHandler;
+
+    @Override
+    public int start(String[] args) {
+        try {
+            while (!asyncBatchStopper.canStop()) { // ポーリングループの停止条件
+                // ジョブ管理テーブルの検索
+                BatchJobListResult batchJobListResult = batchJobDataResolver.resolveBatchJobResult(args);
+                if (batchJobListResult == null) {
+                    TimeUnit.MILLISECONDS.sleep(jobIntervalTime);
+                    continue;
+                }
+                // ジョブの実行
+                asyncJobLauncher.executeTask(batchJobListResult);
+            }
+        } catch (Exception e) {
+            // ループ中断例外と返却ステータスコードの判定(TODO AOPにしてもいいが、Optionalな機能ではないため、ここで実装してよいか？)
+            return exceptionStatusHandler.handleException(e);
+        } finally {
+            asyncJobLauncher.shutdown();
+        }
+        return 0;
+    }
+
+    protected long getPollingIntervalTime() {
+        String jobIntervalTimeStr = PropertyUtil.getProperty("polling.interval");
+        if (jobIntervalTimeStr == null || jobIntervalTimeStr.length() < 1) {
+            return DEFAULT_JOB_INTERVAL_TIME;
+        }
+        try {
+            return Long.parseLong(jobIntervalTimeStr);
+        } catch (NumberFormatException e) {
+            return DEFAULT_JOB_INTERVAL_TIME;
+        }
+    }
+}
+

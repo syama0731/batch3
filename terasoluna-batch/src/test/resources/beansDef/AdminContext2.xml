@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="
+              http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+              http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+              http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+              http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <import resource="AdminContext.xml"/>
+
+    <context:component-scan base-package="jp.terasoluna.fw.batch.async" annotation-config="true"/>
+
+    <task:executor id="threadPoolTaskExecutor" pool-size="3"  />
+
+    <bean id="beanMapper" class="org.dozer.spring.DozerBeanMapperFactoryBean">
+        <property name="mappingFiles" value="classpath*:/META-INF/**/*-mapping.xml"/>
+    </bean>
+
+    <!-- DB接続リトライを行うインターセプタ-->
+    <bean id="connectionRetryInterceptor" class="jp.terasoluna.fw.batch.async.aop.ConnectionRetryInterceptor" />
+    <aop:config>
+        <aop:pointcut id="connectionRetryPointcut"
+          expression="execution(* jp.terasoluna.fw.batch.async.repository.BatchStatusChanger.*(..)) ||
+                      execution(* jp.terasoluna.fw.batch.async.repository.BatchJobDataResolver.*(..))"/>
+        <aop:advisor advice-ref="connectionRetryInterceptor" pointcut-ref="connectionRetryPointcut"/>
+    </aop:config>
+
+    <!-- スレッドグループの生成とMessageAccessorをスレッドグループに紐づくMessageUtilに設定するためのインターセプタ-->
+    <bean id="threadGroupManagementInterceptor" class="jp.terasoluna.fw.batch.async.aop.ThreadGroupManagementInterceptor"/>
+    <aop:config>
+        <aop:pointcut id="threadGroupManagementPointcut"
+          expression="execution(*  jp.terasoluna.fw.batch.async.controller.TaskExecutorDelegate.execute(..)) ||
+                      execution(* jp.terasoluna.fw.batch.async.worker.BatchServant2.execute(..))" />
+        <aop:advisor advice-ref="threadGroupManagementInterceptor" pointcut-ref="threadGroupManagementPointcut"/>
+    </aop:config>
+
+</beans>

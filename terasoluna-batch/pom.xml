@@ -174,7 +174,16 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>net.sf.dozer</groupId>
+            <artifactId>dozer-spring</artifactId>
+            <version>${dozer.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.dozer</groupId>
+            <artifactId>dozer</artifactId>
+            <version>${dozer.version}</version>
+        </dependency>
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -207,7 +216,6 @@
         <dependency>
              <groupId>junit</groupId>
              <artifactId>junit</artifactId>
-             <version>${junit3.version}</version>
              <scope>test</scope>
          </dependency>
 
@@ -236,7 +244,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- 旧UTライブラリ -->
+        <!-- 旧UTライブラリ
         <dependency>
             <groupId>jp.terasoluna.utlib</groupId>
             <artifactId>terasoluna-utlib</artifactId>
@@ -247,7 +255,7 @@
             <artifactId>terasoluna-utlib-spring</artifactId>
             <scope>test</scope>
         </dependency>
-
+-->
         <dependency>
             <groupId>jcoverage</groupId>
             <artifactId>jcoverage</artifactId>

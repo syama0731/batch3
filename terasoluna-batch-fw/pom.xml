@@ -67,6 +67,7 @@
         <jcoverage.version>djunit-1.0.5</jcoverage.version>
 
         <oracle.jdbc.version>11.2.0.2.0</oracle.jdbc.version>
+        <dozer.version>5.5.1</dozer.version>
 
         <!-- plugin version -->
         <maven-antrun-plugin.version>1.7</maven-antrun-plugin.version>
