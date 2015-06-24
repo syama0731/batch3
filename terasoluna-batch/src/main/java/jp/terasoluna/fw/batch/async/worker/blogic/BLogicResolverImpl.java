@@ -11,6 +11,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
@@ -79,8 +80,9 @@ public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
         }
         final Set<Map.Entry<String, Object>> entries = jobMap.entrySet();
         for (Map.Entry<String, Object> entry : entries) {
-            String beanName = entry.getKey();
-            if (!batchJobData.getJobAppCd().equals(beanName)) {
+            Object obj = entry.getValue();
+            JobComponent jobComponent = AnnotationUtils.findAnnotation(obj.getClass(), JobComponent.class);
+            if (jobComponent.jobId() == null || !jobComponent.jobId().equals(batchJobData.getJobAppCd())) {
                 continue;
             }
             return BLogic.class.cast(entry.getValue());

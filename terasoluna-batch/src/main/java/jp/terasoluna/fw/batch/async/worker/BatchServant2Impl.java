@@ -31,12 +31,13 @@ public class BatchServant2Impl implements BatchServant2 {
     private BLogicApplicationContextResolver bLogicApplicationContextResolver;
 
     @Override
-    public void execute(final BatchJobData batchJobData, BLogicResult result) {
+    public BLogicResult execute(final BatchJobData batchJobData) {
         ApplicationContext bLogicAppContext = bLogicApplicationContextResolver.resolveApplicationContext(batchJobData);
         BLogic blogic = bLogicResolver.resolveBLogic(bLogicAppContext, batchJobData);
         BLogicParam bLogicParam = bLogicParamConverter.convertBLogicParam(batchJobData);
         ExceptionHandler handler = bLogicExceptionHandlerResolver.resolveExceptionHandler(
                 bLogicAppContext, batchJobData.getJobAppCd());
+        BLogicResult result = new BLogicResult();
         try {
             result.setBlogicStatus(blogic.execute(bLogicParam));
         } catch (Throwable e) {
@@ -47,6 +48,7 @@ public class BatchServant2Impl implements BatchServant2 {
         } finally {
             closeApplicationContext(bLogicAppContext);
         }
+        return result;
     }
 
     protected void closeApplicationContext(ApplicationContext bLogicApplicationContext) {

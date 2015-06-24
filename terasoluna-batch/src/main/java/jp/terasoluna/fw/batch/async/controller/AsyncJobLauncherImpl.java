@@ -36,42 +36,49 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
     @Resource
     protected TaskExecutorDelegate taskExecutorDelegate;
 
-    protected Semaphore semaphore = null;
+    /**
+     * スレッドプールの上限以上のタスク流入を防ぐためのセマフォ
+     */
+    protected Semaphore taskPoolLimit = null;
+
     private volatile long executorJobTerminateWaitIntervalTime = 5000L;
 
     protected boolean fair = true;
 
     @Override
     public void executeTask(final BatchJobListResult batchJobListResult) {
-        final BatchJobData batchJobData = beforeExecute(batchJobListResult);
-        if (batchJobData == null) {
-            return;
-        }
         try {
-            semaphore.acquire();
+            taskPoolLimit.acquire();
+            final BatchJobData batchJobData = beforeExecute(batchJobListResult);
+            if (batchJobData == null) {
+                taskPoolLimit.release();
+                return;
+            }
             taskExecutorDelegate.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         executeServant(batchJobData);
                     } finally {
-                        semaphore.release();
+                        taskPoolLimit.release();
                     }
                 }
             });
         } catch (TaskRejectedException e) {
-            // TODO タスク実行前に拒否されたログを出す。（セマフォでブロックされているため、例外が起きるとすればキュー溢れぐらい）
-            semaphore.release();
+            // TODO タスク実行前に拒否されたログを出す。
+            taskPoolLimit.release();
         } catch (InterruptedException e) {
             // TODO セマフォ待ち受けで割り込み発生（未実行だがステータスは開始になっちゃったjobSequenceIdのログを出してポーリングループを中断させる必要あり）
             e.printStackTrace();
         }
+
     }
 
+    // TODO 既にセマフォ獲得済みなので、ここでは例外を外部にスローさせない必要があるが実装が汚い。
     protected BatchJobData beforeExecute(BatchJobListResult batchJobListResult) {
         final String jobSequenceId = batchJobListResult.getJobSequenceId();
-        // ジョブステータスを"開始"に変更
         try {
+            // ジョブステータスを"開始"に変更
             boolean updated = batchStatusChanger.changeToStartStatus(jobSequenceId);
             if (!updated) {
                 if (LOGGER.isInfoEnabled()) {
@@ -79,36 +86,49 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
                 }
                 return null;
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info(LogId.IAL025010, batchJobListResult.getJobSequenceId(), e);
             }
             return null;
         }
 
-        // TODO 初めからBatchJobDataを取っておけば、やらなくてよい。（SQLMapの変更が必要）
         BatchJobManagementParam param = new BatchJobManagementParam();
         param.setJobSequenceId(jobSequenceId);
         param.setForUpdate(false);
-        return batchJobDataResolver.resolveBatchJobData(param);
+
+        try {
+            return batchJobDataResolver.resolveBatchJobData(param);
+        } catch (RuntimeException e) {
+            // TODO ログ出し。ジョブ管理テーブル再取得時のリトライオーバー(そもそも再取得は必要なの？）
+            return null;
+        }
     }
 
     protected void executeServant(BatchJobData batchJobData) {
-        BLogicResult result = new BLogicResult();
+        BLogicResult result = null;
         try {
-            batchServant2.execute(batchJobData, result);
+            result = batchServant2.execute(batchJobData);
         } finally {
             try {
                 // ジョブステータスを"終了"に変更
                 boolean status = batchStatusChanger.changeToEndStatus(batchJobData.getJobSequenceId(), result);
                 if (!status) {
                     if (LOGGER.isErrorEnabled()) {
-                        LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus());
+                        if (result != null) { // TODO 汚いが必要になった・・・
+                            LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus());
+                        } else {
+                            LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), null);
+                        }
                     }
                 }
             } catch (Exception e) {
                 if (LOGGER.isErrorEnabled()) {
-                    LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus(), e);
+                    if (result != null) { // TODO 汚いが必要になった・・・
+                        LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus(), e);
+                    } else {
+                        LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), null, e);
+                    }
                 }
             }
         }
@@ -133,7 +153,7 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        this.semaphore = new Semaphore(taskExecutorDelegate.getThreadPoolTaskExecutor().getMaxPoolSize(), this.fair);
+        this.taskPoolLimit = new Semaphore(taskExecutorDelegate.getThreadPoolTaskExecutor().getMaxPoolSize(), this.fair);
         String executorJobTerminateWaitIntervalTimeStr = PropertyUtil.getProperty("executor.jobTerminateWaitInterval");
         if (executorJobTerminateWaitIntervalTimeStr != null) {
             executorJobTerminateWaitIntervalTime = Long.parseLong(executorJobTerminateWaitIntervalTimeStr);
