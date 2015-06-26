@@ -4,10 +4,13 @@ import jp.terasoluna.fw.batch.async.repository.BatchJobDataResolver;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobListResult;
 import jp.terasoluna.fw.logger.TLogger;
 import jp.terasoluna.fw.util.PropertyUtil;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
 import javax.annotation.Resource;
+
 import java.util.concurrent.TimeUnit;
 
 @Controller("asyncJobOperator")
@@ -15,13 +18,8 @@ public class AsyncJobOperatorImpl implements AsyncJobOperator {
 
     private static final TLogger LOGGER = TLogger.getLogger(AsyncJobOperatorImpl.class);
 
-    private final long jobIntervalTime;
-
-    private static final long DEFAULT_JOB_INTERVAL_TIME = 1000;
-
-    public AsyncJobOperatorImpl() {
-        this.jobIntervalTime = getPollingIntervalTime();
-    }
+    @Value("${polling.interval:1000}")
+    private long jobIntervalTime;
 
     @Resource
     protected BatchJobDataResolver batchJobDataResolver;
@@ -55,18 +53,6 @@ public class AsyncJobOperatorImpl implements AsyncJobOperator {
             asyncJobLauncher.shutdown();
         }
         return 0;
-    }
-
-    protected long getPollingIntervalTime() {
-        String jobIntervalTimeStr = PropertyUtil.getProperty("polling.interval");
-        if (jobIntervalTimeStr == null || jobIntervalTimeStr.length() < 1) {
-            return DEFAULT_JOB_INTERVAL_TIME;
-        }
-        try {
-            return Long.parseLong(jobIntervalTimeStr);
-        } catch (NumberFormatException e) {
-            return DEFAULT_JOB_INTERVAL_TIME;
-        }
     }
 }
 
