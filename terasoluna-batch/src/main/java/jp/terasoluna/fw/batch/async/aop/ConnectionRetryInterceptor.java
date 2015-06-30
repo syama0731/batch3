@@ -19,20 +19,20 @@ public class ConnectionRetryInterceptor implements MethodInterceptor {
     /**
      * 最大リトライ回数
      */
-    @Value("${batchTaskExecutor.dbAbnormalRetryMax}")
-    private volatile long maxRetryCount = 0;
+    @Value("${batchTaskExecutor.dbAbnormalRetryMax:0}")
+    private volatile long maxRetryCount;
 
     /**
      * データベース異常時のリトライ間隔（ミリ秒）
      */
-    @Value("${batchTaskExecutor.dbAbnormalRetryInterval}")
-    private volatile long retryInterval = 20000;
+    @Value("${batchTaskExecutor.dbAbnormalRetryInterval:20000}")
+    private volatile long retryInterval;
 
     /**
      * リトライ回数をリセットする、前回からの発生間隔のデフォルト値
      */
-    @Value("${batchTaskExecutor.dbAbnormalRetryReset}")
-    private volatile long retryReset = 600000;
+    @Value("${batchTaskExecutor.dbAbnormalRetryReset:600000}")
+    private volatile long retryReset;
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {

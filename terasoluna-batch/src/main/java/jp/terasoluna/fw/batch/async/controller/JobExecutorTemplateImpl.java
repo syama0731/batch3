@@ -79,7 +79,16 @@ public class JobExecutorTemplateImpl implements JobExecutorTemplate {
         BLogicParam bLogicParam = bLogicParamConverter.convertBLogicParam(batchJobData);
         ExceptionHandler handler = bLogicExceptionHandlerResolver.resolveExceptionHandler(
                 bLogicAppContext, batchJobData.getJobAppCd());
-        return bLogicExecutor.execute(bLogic, bLogicParam, handler);
+        BLogicResult result = new BLogicResult();
+        try {
+            result = bLogicExecutor.execute(bLogic, bLogicParam);
+        } catch (Throwable t) {
+            result.setBlogicThrowable(t);
+            if (handler != null) {
+                result.setBlogicStatus(handler.handleThrowableException(t));
+            }
+        }
+        return result;
     }
 
     @Override

@@ -30,8 +30,8 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean 
      */
     protected Semaphore taskPoolLimit = null;
 
-    @Value("${executor.jobTerminateWaitInterval}")
-    protected volatile long executorJobTerminateWaitIntervalTime = 5000L;
+    @Value("${executor.jobTerminateWaitInterval:5000}")
+    protected volatile long executorJobTerminateWaitIntervalTime;
 
     @Value("${batchTaskExecutor.maxPoolSize:-1}")
     protected int semaphoreSize;
