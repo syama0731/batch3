@@ -3,11 +3,11 @@ package jp.terasoluna.fw.batch.async.controller;
 import jp.terasoluna.fw.batch.async.repository.BatchJobDataResolver;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobListResult;
 import jp.terasoluna.fw.logger.TLogger;
-import jp.terasoluna.fw.util.PropertyUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+
 import java.util.concurrent.TimeUnit;
 
 @Component("asyncJobOperator")
