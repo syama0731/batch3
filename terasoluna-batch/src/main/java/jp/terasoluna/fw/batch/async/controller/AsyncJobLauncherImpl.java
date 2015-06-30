@@ -1,56 +1,49 @@
 package jp.terasoluna.fw.batch.async.controller;
 
-import jp.terasoluna.fw.batch.async.repository.BatchJobDataResolver;
-import jp.terasoluna.fw.batch.async.worker.BatchServant2;
-import jp.terasoluna.fw.batch.async.repository.BatchStatusChanger;
 import jp.terasoluna.fw.batch.constants.LogId;
 import jp.terasoluna.fw.batch.executor.vo.BLogicResult;
-import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
-import jp.terasoluna.fw.batch.executor.vo.BatchJobListResult;
-import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementParam;
 import jp.terasoluna.fw.logger.TLogger;
-import jp.terasoluna.fw.util.PropertyUtil;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-@Controller("asyncJobLauncher")
-public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean {
+@Component("asyncJobLauncher")
+public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean {
 
     private static final TLogger LOGGER = TLogger.getLogger(AsyncJobLauncherImpl.class);
 
     @Resource
-    private BatchStatusChanger batchStatusChanger;
-
-    @Resource
-    private BatchJobDataResolver batchJobDataResolver;
-
-    @Resource
-    private BatchServant2 batchServant2;
-
-    @Resource
     protected TaskExecutorDelegate taskExecutorDelegate;
+
+    @Resource
+    protected JobExecutorTemplate jobExecutorTemplate;
 
     /**
      * スレッドプールの上限以上のタスク流入を防ぐためのセマフォ
      */
     protected Semaphore taskPoolLimit = null;
 
-    private volatile long executorJobTerminateWaitIntervalTime = 5000L;
+    @Value("${executor.jobTerminateWaitInterval}")
+    protected volatile long executorJobTerminateWaitIntervalTime = 5000L;
+
+    @Value("${batchTaskExecutor.maxPoolSize:-1}")
+    protected int semaphoreSize;
 
     protected boolean fair = true;
 
     @Override
-    public void executeTask(final BatchJobListResult batchJobListResult) {
+    public void executeTask(final String jobSequenceId) {
+        Assert.notNull(jobSequenceId);
         try {
             taskPoolLimit.acquire();
-            final BatchJobData batchJobData = beforeExecute(batchJobListResult);
-            if (batchJobData == null) {
+            if (!jobExecutorTemplate.beforeExecute(jobSequenceId)) {
                 taskPoolLimit.release();
                 return;
             }
@@ -58,7 +51,7 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
                 @Override
                 public void run() {
                     try {
-                        executeServant(batchJobData);
+                        launchJob(jobSequenceId);
                     } finally {
                         taskPoolLimit.release();
                     }
@@ -74,63 +67,12 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
 
     }
 
-    // TODO 既にセマフォ獲得済みなので、ここでは例外を外部にスローさせない必要があるが実装が汚い。
-    protected BatchJobData beforeExecute(BatchJobListResult batchJobListResult) {
-        final String jobSequenceId = batchJobListResult.getJobSequenceId();
-        try {
-            // ジョブステータスを"開始"に変更
-            boolean updated = batchStatusChanger.changeToStartStatus(jobSequenceId);
-            if (!updated) {
-                if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info(LogId.IAL025010, batchJobListResult.getJobSequenceId());
-                }
-                return null;
-            }
-        } catch (RuntimeException e) {
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info(LogId.IAL025010, batchJobListResult.getJobSequenceId(), e);
-            }
-            return null;
-        }
-
-        BatchJobManagementParam param = new BatchJobManagementParam();
-        param.setJobSequenceId(jobSequenceId);
-        param.setForUpdate(false);
-
-        try {
-            return batchJobDataResolver.resolveBatchJobData(param);
-        } catch (RuntimeException e) {
-            // TODO ログ出し。ジョブ管理テーブル再取得時のリトライオーバー(そもそも再取得は必要なの？）
-            return null;
-        }
-    }
-
-    protected void executeServant(BatchJobData batchJobData) {
+    protected void launchJob(String jobSequenceId) {
         BLogicResult result = null;
         try {
-            result = batchServant2.execute(batchJobData);
+            result = jobExecutorTemplate.executeBLogic(jobSequenceId);
         } finally {
-            try {
-                // ジョブステータスを"終了"に変更
-                boolean status = batchStatusChanger.changeToEndStatus(batchJobData.getJobSequenceId(), result);
-                if (!status) {
-                    if (LOGGER.isErrorEnabled()) {
-                        if (result != null) { // TODO 汚いが必要になった・・・
-                            LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus());
-                        } else {
-                            LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), null);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                if (LOGGER.isErrorEnabled()) {
-                    if (result != null) { // TODO 汚いが必要になった・・・
-                        LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), result.getBlogicStatus(), e);
-                    } else {
-                        LOGGER.error(LogId.EAL025025, batchJobData.getJobSequenceId(), null, e);
-                    }
-                }
-            }
+            jobExecutorTemplate.afterExecute(jobSequenceId, result);
         }
     }
 
@@ -151,16 +93,13 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher , InitializingBean
         }
     }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        this.taskPoolLimit = new Semaphore(taskExecutorDelegate.getThreadPoolTaskExecutor().getMaxPoolSize(), this.fair);
-        String executorJobTerminateWaitIntervalTimeStr = PropertyUtil.getProperty("executor.jobTerminateWaitInterval");
-        if (executorJobTerminateWaitIntervalTimeStr != null) {
-            executorJobTerminateWaitIntervalTime = Long.parseLong(executorJobTerminateWaitIntervalTimeStr);
-        }
-    }
-
     public void setFair(boolean fair) {
         this.fair = fair;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        Assert.state(semaphoreSize > 0, "semaphore size must be defined at ${batchTaskExecutor.maxPoolSize} in property file.");
+        taskPoolLimit = new Semaphore(semaphoreSize);
     }
 }

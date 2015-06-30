@@ -8,12 +8,12 @@ import jp.terasoluna.fw.batch.executor.vo.BatchJobListParam;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobListResult;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementParam;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Repository("batchJobDataResolver")
+@Component("batchJobDataResolver")
 public class BatchJobDataResolverImpl implements BatchJobDataResolver {
 
     @Autowired

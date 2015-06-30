@@ -5,5 +5,5 @@ import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import org.springframework.context.ApplicationContext;
 
 public interface BLogicResolver {
-    BLogic resolveBLogic(ApplicationContext ctx, BatchJobData batchJobData);
+    BLogic resolveBLogic(ApplicationContext ctx, String jobAppCd);
 }

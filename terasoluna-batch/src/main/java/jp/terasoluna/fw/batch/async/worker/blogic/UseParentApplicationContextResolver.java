@@ -3,8 +3,8 @@ package jp.terasoluna.fw.batch.async.worker.blogic;
 import jp.terasoluna.fw.batch.constants.LogId;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import jp.terasoluna.fw.logger.TLogger;
-import jp.terasoluna.fw.util.PropertyUtil;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.support.AbstractApplicationContext;
@@ -27,11 +27,6 @@ public class UseParentApplicationContextResolver implements BLogicApplicationCon
      */
     private static final TLogger LOGGER = TLogger
             .getLogger(UseParentApplicationContextResolver.class);
-
-    /**
-     * 業務用Bean定義ファイルを配置するクラスパス.
-     */
-    protected static final String BEAN_DEFINITION_BUSINESS_CLASSPATH_KEY = "beanDefinition.business.classpath";
 
     /**
      * Bean定義ファイル名.
@@ -78,6 +73,9 @@ public class UseParentApplicationContextResolver implements BLogicApplicationCon
      */
     protected static final String FIELD_JOB_ARG = "JobArgNm";
 
+    @Value("${beanDefinition.business.classpath}")
+    protected String classpath;
+
     public void setUseParent(boolean useParent) {
         this.useParent = useParent;
     }
@@ -100,13 +98,10 @@ public class UseParentApplicationContextResolver implements BLogicApplicationCon
     protected String getBeanFileName(String jobAppCd, BatchJobData jobRecord) {
         StringBuilder str = new StringBuilder();
 
-        String classpath = PropertyUtil
-                .getProperty(BEAN_DEFINITION_BUSINESS_CLASSPATH_KEY);
-
         // 置換文字列を置換する
-        classpath = replaceString(classpath, jobAppCd, jobRecord);
+        String replacedClasspath = replaceString(classpath, jobAppCd, jobRecord);
 
-        str.append(classpath == null ? "" : classpath);
+        str.append(replacedClasspath == null ? "" : replacedClasspath);
         str.append(jobAppCd == null ? "" : jobAppCd);
         str.append(PROPERTY_BEAN_FILENAME_SUFFIX);
 

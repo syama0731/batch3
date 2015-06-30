@@ -1,21 +1,23 @@
 package jp.terasoluna.fw.batch.async.aop;
 
 import jp.terasoluna.fw.batch.async.controller.TaskExecutorDelegate;
-import jp.terasoluna.fw.batch.async.worker.BatchServant2;
+import jp.terasoluna.fw.batch.async.worker.BLogicExecutor;
 import jp.terasoluna.fw.batch.executor.AsyncBatchExecutor;
 import jp.terasoluna.fw.batch.message.MessageAccessor;
 import jp.terasoluna.fw.batch.util.MessageUtil;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ConcurrentHashMap;
 
-/**
+ /**
  * スレッドローカルと名称の解決、スレッドローカルのライフサイクルを一元管理するインターセプタ。
  * Bean定義内で異なるスレッドで実行される<code>TaskExecutorDelegate#execute(),BatchServant2#execute()</code>の
  * どちらにも適用されるよう設定すること。<br>
@@ -44,9 +46,8 @@ public class ThreadGroupManagementInterceptor implements MethodInterceptor, Init
     /** スレッド名セパレータ. */
     public static final String THREAD_NAME_SEPARATOR = "-";
 
-    // Singletonであること。
-    @Resource
-    protected TaskExecutorDelegate taskExecutorDelegate;
+    @Value("${batchTaskExecutor.maxPoolSize:-1}")
+    protected int maxPoolSize;
 
     @Resource
     protected MessageAccessor messageAccessor;
@@ -65,7 +66,7 @@ public class ThreadGroupManagementInterceptor implements MethodInterceptor, Init
         if (target instanceof TaskExecutorDelegate && "execute".equals(method.getName())) {
             return invokeTaskExecutor(invocation);
         }
-        if (target instanceof BatchServant2) {
+        if (target instanceof BLogicExecutor) {
             return invokeBatchServant(invocation);
         }
         throw new IllegalStateException(String.format("invocation target is invalid. [%s]", target));
@@ -93,12 +94,12 @@ public class ThreadGroupManagementInterceptor implements MethodInterceptor, Init
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        int capacity = taskExecutorDelegate.getThreadPoolTaskExecutor().getMaxPoolSize();
+        Assert.state(maxPoolSize > 0, "maxPoolSize must be defined in property file. [" + maxPoolSize + "]");
 
         threadGroupMap = new ConcurrentHashMap<>();
-        threadGroupQueue = new ArrayBlockingQueue<>(capacity);
+        threadGroupQueue = new ArrayBlockingQueue<>(maxPoolSize);
 
-        for (int i = 1; i <= capacity; i++) {
+        for (int i = 1; i <= maxPoolSize; i++) {
             // スレッドグループプリフィックス設定
             StringBuilder tgn = new StringBuilder();
             tgn.append(THREAD_GROUP_PREFIX);

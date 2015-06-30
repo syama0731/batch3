@@ -4,23 +4,20 @@ import jp.terasoluna.fw.batch.annotation.JobComponent;
 import jp.terasoluna.fw.batch.annotation.util.GenericBeanFactoryAccessorEx;
 import jp.terasoluna.fw.batch.blogic.BLogic;
 import jp.terasoluna.fw.batch.constants.LogId;
-import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import jp.terasoluna.fw.logger.TLogger;
-import jp.terasoluna.fw.util.PropertyUtil;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
 import java.beans.Introspector;
 import java.util.Map;
 import java.util.Set;
 
 @Component("bLogicResolver")
-public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
+public class BLogicResolverImpl implements BLogicResolver {
 
     private static TLogger LOGGER = TLogger.getLogger(BLogicResolverImpl.class);
 
@@ -32,31 +29,25 @@ public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
     /**
      * JobComponentアノテーション有効化フラグ
      */
+    @Value("${enableJobComponentAnnotation}")
     protected boolean enableJobComponentAnnotation = false;
-
-    /**
-     * JobComponentアノテーション有効化フラグ取得キー.
-     */
-    protected static final String ENABLE_JOBCOMPONENT_ANNOTATION = "enableJobComponentAnnotation";
 
     public void setEnableJobComponentAnnotation(boolean enableJobComponentAnnotation) {
         this.enableJobComponentAnnotation = enableJobComponentAnnotation;
     }
 
     @Override
-    public BLogic resolveBLogic(ApplicationContext ctx, BatchJobData batchJobData) {
-        Assert.notNull(batchJobData);
-        Assert.notNull(batchJobData.getJobAppCd());
+    public BLogic resolveBLogic(ApplicationContext ctx, String jobAppCd) {
         BLogic bLogic = null;
         if (enableJobComponentAnnotation) {
-            bLogic = resolveFromAnnotation(ctx, batchJobData);
+            bLogic = resolveFromAnnotation(ctx, jobAppCd);
             if (bLogic != null) {
                 return bLogic;
             }
         }
 
         // TODO 何度もcontainsBean()してて効率悪い。
-        String bLogicBeanName = getBlogicBeanName(batchJobData.getJobAppCd());
+        String bLogicBeanName = getBlogicBeanName(jobAppCd);
         // ビジネスロジックのBeanが存在するか確認
         if (ctx.containsBean(bLogicBeanName)) {
             return ctx.getBean(bLogicBeanName, BLogic.class);
@@ -72,7 +63,7 @@ public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
         return bLogic;
     }
 
-    protected BLogic resolveFromAnnotation(ApplicationContext ctx, BatchJobData batchJobData) {
+    protected BLogic resolveFromAnnotation(ApplicationContext ctx, String jobAppCd) {
         GenericBeanFactoryAccessorEx gbfa = new GenericBeanFactoryAccessorEx(ctx);
         Map<String, Object> jobMap = gbfa.getBeansWithAnnotation(JobComponent.class);
         if (jobMap == null) {
@@ -82,7 +73,7 @@ public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
         for (Map.Entry<String, Object> entry : entries) {
             Object obj = entry.getValue();
             JobComponent jobComponent = AnnotationUtils.findAnnotation(obj.getClass(), JobComponent.class);
-            if (jobComponent.jobId() == null || !jobComponent.jobId().equals(batchJobData.getJobAppCd())) {
+            if (jobComponent.jobId() == null || !jobComponent.jobId().equals(jobAppCd)) {
                 continue;
             }
             return BLogic.class.cast(entry.getValue());
@@ -104,14 +95,5 @@ public class BLogicResolverImpl implements BLogicResolver, InitializingBean {
         }
 
         return str.toString();
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        // JobComponentアノテーション有効化フラグ取得
-        String enableJobComponentAnnotationStr = PropertyUtil.getProperty(ENABLE_JOBCOMPONENT_ANNOTATION);
-        if (enableJobComponentAnnotationStr != null && enableJobComponentAnnotationStr.length() != 0) {
-            this.enableJobComponentAnnotation = Boolean.parseBoolean(enableJobComponentAnnotationStr);
-        }
     }
 }

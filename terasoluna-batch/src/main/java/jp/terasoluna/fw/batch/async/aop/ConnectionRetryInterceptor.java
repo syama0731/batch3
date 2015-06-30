@@ -4,48 +4,35 @@ import jp.terasoluna.fw.batch.constants.LogId;
 import jp.terasoluna.fw.batch.executor.RetryableExecuteException;
 import jp.terasoluna.fw.batch.util.BatchUtil;
 import jp.terasoluna.fw.logger.TLogger;
-import jp.terasoluna.fw.util.PropertyUtil;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.ibatis.transaction.TransactionException;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 
 import java.util.concurrent.TimeUnit;
 
-public class ConnectionRetryInterceptor implements MethodInterceptor, InitializingBean {
+public class ConnectionRetryInterceptor implements MethodInterceptor {
 
     private static final TLogger LOGGER = TLogger.getLogger(ConnectionRetryInterceptor.class);
 
     /**
      * 最大リトライ回数
      */
+    @Value("${batchTaskExecutor.dbAbnormalRetryMax}")
     private volatile long maxRetryCount = 0;
 
     /**
      * データベース異常時のリトライ間隔（ミリ秒）
      */
+    @Value("${batchTaskExecutor.dbAbnormalRetryInterval}")
     private volatile long retryInterval = 20000;
 
     /**
      * リトライ回数をリセットする、前回からの発生間隔のデフォルト値
      */
+    @Value("${batchTaskExecutor.dbAbnormalRetryReset}")
     private volatile long retryReset = 600000;
-
-    /**
-     * データベース異常時のリトライ回数定義名
-     */
-    private static final String BATCH_DB_ABNORMAL_RETRY_MAX = "batchTaskExecutor.dbAbnormalRetryMax";
-
-    /**
-     * データベース異常時のリトライ間隔定義名
-     */
-    private static final String BATCH_DB_ABNORMAL_RETRY_INTERVAL = "batchTaskExecutor.dbAbnormalRetryInterval";
-
-    /**
-     * データベース異常時のリトライ回数をリセットする前回からの発生間隔定義名
-     */
-    private static final String BATCH_DB_ABNORMAL_RETRY_RESET = "batchTaskExecutor.dbAbnormalRetryReset";
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
@@ -89,51 +76,5 @@ public class ConnectionRetryInterceptor implements MethodInterceptor, Initializi
             throw cause;
         }
         return returnObject;
-    }
-
-    public void setMaxRetryCount(long maxRetryCount) {
-        this.maxRetryCount = maxRetryCount;
-    }
-
-    public void setRetryInterval(long retryInterval) {
-        this.retryInterval = retryInterval;
-    }
-
-    public void setRetryReset(long retryReset) {
-        this.retryReset = retryReset;
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        String dbAbnormalRetryMaxStr = PropertyUtil.getProperty(BATCH_DB_ABNORMAL_RETRY_MAX);
-        String dbAbnormalRetryIntervalStr = PropertyUtil.getProperty(BATCH_DB_ABNORMAL_RETRY_INTERVAL);
-        String dbAbnormalRetryResetStr = PropertyUtil.getProperty(BATCH_DB_ABNORMAL_RETRY_RESET);
-
-        if (dbAbnormalRetryMaxStr != null && dbAbnormalRetryMaxStr.length() > 0) {
-            try {
-                maxRetryCount = Long.parseLong(dbAbnormalRetryMaxStr);
-            } catch (NumberFormatException e) {
-                LOGGER.error(LogId.EAL025046, e, BATCH_DB_ABNORMAL_RETRY_MAX, dbAbnormalRetryMaxStr);
-                throw e;
-            }
-        }
-
-        if (dbAbnormalRetryIntervalStr != null && dbAbnormalRetryIntervalStr.length() > 0) {
-            try {
-                retryInterval = Long.parseLong(dbAbnormalRetryIntervalStr);
-            } catch (NumberFormatException e) {
-                LOGGER.error(LogId.EAL025046, e, BATCH_DB_ABNORMAL_RETRY_INTERVAL, dbAbnormalRetryIntervalStr);
-                throw e;
-            }
-        }
-
-        if (dbAbnormalRetryResetStr != null && dbAbnormalRetryResetStr.length() > 0) {
-            try {
-                retryReset = Long.parseLong(dbAbnormalRetryResetStr);
-            } catch (NumberFormatException e) {
-                LOGGER.error(LogId.EAL025046, e, BATCH_DB_ABNORMAL_RETRY_RESET, dbAbnormalRetryResetStr);
-                throw e;
-            }
-        }
     }
 }

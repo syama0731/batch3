@@ -8,4 +8,5 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  */
 public interface TaskExecutorDelegate extends TaskExecutor {
     ThreadPoolTaskExecutor getThreadPoolTaskExecutor();
+    void execute(Runnable task);
 }

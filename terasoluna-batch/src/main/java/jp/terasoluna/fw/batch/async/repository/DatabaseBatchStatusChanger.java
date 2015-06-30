@@ -11,7 +11,7 @@ import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementUpdateParam;
 import jp.terasoluna.fw.logger.TLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
@@ -19,7 +19,7 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 import javax.annotation.Resource;
 import java.sql.Timestamp;
 
-@Repository("batchStatusChanger")
+@Component("batchStatusChanger")
 public class DatabaseBatchStatusChanger implements BatchStatusChanger {
 
     private static final TLogger LOGGER = TLogger.getLogger(DatabaseBatchStatusChanger.class);

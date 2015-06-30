@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 
-@Component("taskExecutorDelegator")
+@Component("taskExecutorDelegate")
 public class TaskExecutorDelegatorImpl implements TaskExecutorDelegate {
 
     @Resource
