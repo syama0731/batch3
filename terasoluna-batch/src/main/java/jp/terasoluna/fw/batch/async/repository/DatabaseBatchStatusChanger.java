@@ -62,7 +62,6 @@ public class DatabaseBatchStatusChanger implements BatchStatusChanger {
             updateParam.setJobSequenceId(batchJobData.getJobSequenceId());
             updateParam.setBLogicAppStatus(batchJobData.getBLogicAppStatus());
             updateParam.setCurAppStatus(nextStatus);
-            updateParam.setUpdDateTime(getCurrentTime());
             int count = systemDao.updateJobTable(updateParam);
             if (count != 1) {
                 LOGGER.error(LogId.EAL025042);
@@ -110,7 +109,6 @@ public class DatabaseBatchStatusChanger implements BatchStatusChanger {
             updateParam.setJobSequenceId(batchJobData.getJobSequenceId());
             updateParam.setBLogicAppStatus(Integer.toString(bLogicResult.getBlogicStatus()));
             updateParam.setCurAppStatus(nextStatus);
-            updateParam.setUpdDateTime(getCurrentTime());
             int count = systemDao.updateJobTable(updateParam);
             if (count != 1) {
                 LOGGER.error(LogId.EAL025042);
@@ -123,24 +121,5 @@ public class DatabaseBatchStatusChanger implements BatchStatusChanger {
             }
         }
         return true;
-    }
-
-    /**
-     * <h6>カレント時刻を取得する.</h6>
-     * TODO いい加減SQLへ移行させよう・・・
-     * @return Timestamp カレント時刻
-     */
-    @Deprecated
-    public Timestamp getCurrentTime() {
-        Timestamp result = null;
-        try {
-            result = systemDao.readCurrentTime();
-        } catch (Exception e) {
-            LOGGER.error(LogId.EAL025043, e);
-            if (e instanceof DataAccessException) {
-                throw (DataAccessException) e;
-            }
-        }
-        return result;
     }
 }
