@@ -16,6 +16,7 @@ import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementParam;
 import jp.terasoluna.fw.logger.TLogger;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -87,8 +88,21 @@ public class JobExecutorTemplateImpl implements JobExecutorTemplate {
             if (handler != null) {
                 result.setBlogicStatus(handler.handleThrowableException(t));
             }
+        } finally {
+            closeBLogicApplicationContext(bLogicAppContext);
         }
         return result;
+    }
+
+    protected void closeBLogicApplicationContext(ApplicationContext bLogicApplicationContext) {
+        if (bLogicApplicationContext == null) {
+            return;
+        }
+        if (bLogicApplicationContext instanceof AbstractApplicationContext) {
+            AbstractApplicationContext aac = (AbstractApplicationContext) bLogicApplicationContext;
+            aac.close();
+            aac.destroy();
+        }
     }
 
     @Override
