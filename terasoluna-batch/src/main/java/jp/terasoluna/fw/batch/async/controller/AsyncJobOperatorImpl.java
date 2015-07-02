@@ -37,7 +37,7 @@ public class AsyncJobOperatorImpl implements AsyncJobOperator {
                 // ジョブ管理テーブルの検索
                 BatchJobListResult batchJobListResult = batchJobDataResolver.resolveBatchJobResult(args);
                 if (batchJobListResult == null) {
-                    TimeUnit.MILLISECONDS.sleep(jobIntervalTime);
+                    pollingSleep();
                     continue;
                 }
                 // ジョブの実行
@@ -50,6 +50,10 @@ public class AsyncJobOperatorImpl implements AsyncJobOperator {
             asyncJobLauncher.shutdown();
         }
         return 0;
+    }
+
+    protected void pollingSleep() throws InterruptedException {
+        TimeUnit.MILLISECONDS.sleep(jobIntervalTime);
     }
 }
 

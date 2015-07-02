@@ -89,7 +89,7 @@ public class JobExecutorTemplateImpl implements JobExecutorTemplate {
                 result.setBlogicStatus(handler.handleThrowableException(t));
             }
         } finally {
-            closeBLogicApplicationContext(bLogicAppContext);
+            bLogicApplicationContextResolver.closeApplicationContext(bLogicAppContext);
         }
         return result;
     }
