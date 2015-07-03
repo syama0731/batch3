@@ -1,14 +1,19 @@
-package jp.terasoluna.fw.batch.async.aop;
+package jp.terasoluna.fw.batch.executor;
 
+import jp.terasoluna.fw.batch.async.controller.BatchServantTaskInvoker;
 import jp.terasoluna.fw.batch.async.controller.TaskExecutorDelegate;
 import jp.terasoluna.fw.batch.async.worker.BLogicExecutor;
 import jp.terasoluna.fw.batch.executor.AsyncBatchExecutor;
+import jp.terasoluna.fw.batch.executor.ThreadGroupApplicationContextHolder;
+import jp.terasoluna.fw.batch.executor.concurrent.BatchServant;
 import jp.terasoluna.fw.batch.message.MessageAccessor;
 import jp.terasoluna.fw.batch.util.MessageUtil;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
@@ -19,7 +24,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 
  /**
  * スレッドローカルと名称の解決、スレッドローカルのライフサイクルを一元管理するインターセプタ。
- * Bean定義内で異なるスレッドで実行される<code>TaskExecutorDelegate#execute(),BatchServant2#execute()</code>の
+ * Bean定義内で異なるスレッドで実行される<code>TaskExecutorDelegate#execute(),BLogicExecutor#execute()</code>の
  * どちらにも適用されるよう設定すること。<br>
  * 設定例：
  * <code><pre>
@@ -60,13 +65,13 @@ public class ThreadGroupManagementInterceptor implements MethodInterceptor, Init
     public Object invoke(MethodInvocation invocation) throws Throwable {
         Object target = invocation.getThis();
         Method method = invocation.getMethod();
-        if (!"execute".equals(method.getName())) {
-            throw new IllegalStateException(String.format("execution method name is invalid. [%s]", method));
-        }
         if (target instanceof TaskExecutorDelegate && "execute".equals(method.getName())) {
             return invokeTaskExecutor(invocation);
         }
-        if (target instanceof BLogicExecutor) {
+        if (target instanceof BLogicExecutor && "execute".equals(method.getName())) {
+            return invokeBLogicExecutor(invocation);
+        }
+        if (target instanceof BatchServant && "run".equals(method.getName())) {
             return invokeBatchServant(invocation);
         }
         throw new IllegalStateException(String.format("invocation target is invalid. [%s]", target));
@@ -81,12 +86,28 @@ public class ThreadGroupManagementInterceptor implements MethodInterceptor, Init
         return invocation.proceed();
     }
 
-    protected Object invokeBatchServant(MethodInvocation invocation) throws Throwable {
+    protected Object invokeBLogicExecutor(MethodInvocation invocation) throws Throwable {
         try {
             MessageUtil.setMessageAccessor(messageAccessor);
+            // スレッドグループローカルに子ApplicationContextを格納する。
+            if (invocation.getArguments().length > 0 && invocation.getArguments()[0] instanceof ApplicationContext) {
+                ThreadGroupApplicationContextHolder.setApplicationContext(
+                        ApplicationContext.class.cast(invocation.getArguments()[0]));
+            }
             return invocation.proceed();
         } finally {
             MessageUtil.removeMessageAccessor();
+            ThreadGroupApplicationContextHolder.removeApplicationContext();
+            ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
+            threadGroupQueue.put(threadGroup);
+        }
+    }
+
+    protected Object invokeBatchServant(MethodInvocation invocation) throws Throwable {
+        try {
+            return invocation.proceed();
+        } finally {
+            // MessageUtil,ThreadGroupApplicationContextHolderの開放処理はBatchServantに任せる。
             ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
             threadGroupQueue.put(threadGroup);
         }

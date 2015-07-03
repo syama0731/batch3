@@ -11,6 +11,7 @@ import jp.terasoluna.fw.batch.blogic.BLogic;
 import jp.terasoluna.fw.batch.blogic.vo.BLogicParam;
 import jp.terasoluna.fw.batch.constants.LogId;
 import jp.terasoluna.fw.batch.exception.handler.ExceptionHandler;
+import jp.terasoluna.fw.batch.executor.ThreadGroupApplicationContextHolder;
 import jp.terasoluna.fw.batch.executor.vo.BLogicResult;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobManagementParam;
@@ -22,9 +23,9 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 
 @Component("jobExecutorTemplate")
-public class JobExecutorTemplateImpl implements JobExecutorTemplate {
+public class WorkerTemplateImpl implements JobExecutorTemplate {
 
-    private static final TLogger LOGGER = TLogger.getLogger(JobExecutorTemplateImpl.class);
+    private static final TLogger LOGGER = TLogger.getLogger(WorkerTemplateImpl.class);
 
     @Resource
     protected BLogicResolver bLogicResolver;
@@ -49,6 +50,7 @@ public class JobExecutorTemplateImpl implements JobExecutorTemplate {
 
     @Override
     public boolean beforeExecute(String jobSequenceId) {
+        // 本メソッドはMainスレッド上で呼び出される。
         try {
             // ジョブステータスを"開始"に変更
             boolean updated = batchStatusChanger.changeToStartStatus(jobSequenceId);
@@ -68,45 +70,39 @@ public class JobExecutorTemplateImpl implements JobExecutorTemplate {
     }
 
     @Override
-    public BLogicResult executeBLogic(final String jobSequenceId) {
+    public void executeWorker(final String jobSequenceId) {
+        // 本メソッドはWorkerスレッドで呼び出される。
         BatchJobManagementParam param = new BatchJobManagementParam() {{
             setJobSequenceId(jobSequenceId);
             setForUpdate(false);
         }};
         BatchJobData batchJobData = batchJobDataResolver.resolveBatchJobData(param);
 
+        // 念のためトリムする
+        if (batchJobData.getJobAppCd() != null) {
+            batchJobData.setJobAppCd(batchJobData.getJobAppCd().trim());
+        }
+
         ApplicationContext bLogicAppContext = bLogicApplicationContextResolver.resolveApplicationContext(batchJobData);
         BLogic bLogic = bLogicResolver.resolveBLogic(bLogicAppContext, batchJobData.getJobAppCd());
         BLogicParam bLogicParam = bLogicParamConverter.convertBLogicParam(batchJobData);
-        ExceptionHandler handler = bLogicExceptionHandlerResolver.resolveExceptionHandler(
-                bLogicAppContext, batchJobData.getJobAppCd());
+        ExceptionHandler handler = bLogicExceptionHandlerResolver.resolveExceptionHandler(bLogicAppContext,
+                batchJobData.getJobAppCd());
         BLogicResult result = new BLogicResult();
         try {
-            result = bLogicExecutor.execute(bLogic, bLogicParam);
+            result = bLogicExecutor.execute(bLogicAppContext, bLogic, bLogicParam);
         } catch (Throwable t) {
             result.setBlogicThrowable(t);
             if (handler != null) {
                 result.setBlogicStatus(handler.handleThrowableException(t));
             }
         } finally {
+            afterExecute(jobSequenceId, result);
             bLogicApplicationContextResolver.closeApplicationContext(bLogicAppContext);
         }
-        return result;
     }
 
-    protected void closeBLogicApplicationContext(ApplicationContext bLogicApplicationContext) {
-        if (bLogicApplicationContext == null) {
-            return;
-        }
-        if (bLogicApplicationContext instanceof AbstractApplicationContext) {
-            AbstractApplicationContext aac = (AbstractApplicationContext) bLogicApplicationContext;
-            aac.close();
-            aac.destroy();
-        }
-    }
-
-    @Override
-    public void afterExecute(String jobSequenceId, BLogicResult result) {
+    protected void afterExecute(String jobSequenceId, BLogicResult result) {
         try {
             // ジョブステータスを"終了"に変更
             boolean status = batchStatusChanger.changeToEndStatus(jobSequenceId, result);

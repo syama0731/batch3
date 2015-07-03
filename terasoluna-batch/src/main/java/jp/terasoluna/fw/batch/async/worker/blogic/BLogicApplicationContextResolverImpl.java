@@ -17,16 +17,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component("bLogicApplicationContextResolver")
-public class UseParentApplicationContextResolver implements BLogicApplicationContextResolver, ApplicationContextAware  {
+public class BLogicApplicationContextResolverImpl implements BLogicApplicationContextResolver, ApplicationContextAware  {
 
-    protected boolean useParent = false;
     protected ApplicationContext parent;
 
     /**
      * ログ.
      */
     private static final TLogger LOGGER = TLogger
-            .getLogger(UseParentApplicationContextResolver.class);
+            .getLogger(BLogicApplicationContextResolverImpl.class);
 
     /**
      * Bean定義ファイル名.
@@ -76,17 +75,10 @@ public class UseParentApplicationContextResolver implements BLogicApplicationCon
     @Value("${beanDefinition.business.classpath}")
     protected String classpath;
 
-    public void setUseParent(boolean useParent) {
-        this.useParent = useParent;
-    }
-
     @Override
     public ApplicationContext resolveApplicationContext(BatchJobData batchJobData) {
         String bLogicBeanDefinitionName = getBeanFileName(batchJobData.getJobAppCd(), batchJobData);
-        if (useParent) {
-            return new ClassPathXmlApplicationContext(new String[]{bLogicBeanDefinitionName}, parent);
-        }
-        return new ClassPathXmlApplicationContext(bLogicBeanDefinitionName);
+        return new ClassPathXmlApplicationContext(new String[]{bLogicBeanDefinitionName}, parent);
     }
 
     @Override

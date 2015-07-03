@@ -28,12 +28,16 @@
     </aop:config>
 
     <!-- スレッドグループの生成とMessageAccessorをスレッドグループに紐づくMessageUtilに設定するためのインターセプタ-->
-    <bean id="threadGroupManagementInterceptor" class="jp.terasoluna.fw.batch.async.aop.ThreadGroupManagementInterceptor" />
-
+    <bean id="threadGroupManagementInterceptor" class="jp.terasoluna.fw.batch.executor.ThreadGroupManagementInterceptor" />
     <aop:config>
         <aop:pointcut id="threadGroupManagementPointcut"
           expression="execution(*  jp.terasoluna.fw.batch.async.controller.TaskExecutorDelegate.execute(..)) ||
-                      execution(* jp.terasoluna.fw.batch.async.worker.BLogicExecutor.execute(..))" />
+                      execution(* jp.terasoluna.fw.batch.async.worker.BLogicExecutor.execute(..)) ||
+                      execution(* jp.terasoluna.fw.batch.executor.concurrent.BatchServant.run(..))" />
         <aop:advisor advice-ref="threadGroupManagementInterceptor" pointcut-ref="threadGroupManagementPointcut"/>
     </aop:config>
+
+    <!-- 既存のBatchServantを利用してビジネスロジックを実行する。
+    <bean id="taskInvoker" class="jp.terasoluna.fw.batch.async.controller.BatchServantTaskInvoker"/>
+     -->
 </beans>

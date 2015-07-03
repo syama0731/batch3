@@ -25,6 +25,9 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean 
     @Resource
     protected JobExecutorTemplate jobExecutorTemplate;
 
+    @Resource
+    protected TaskInvoker taskInvoker;
+
     /**
      * スレッドプールの上限以上のタスク流入を防ぐためのセマフォ
      */
@@ -51,7 +54,7 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean 
                 @Override
                 public void run() {
                     try {
-                        launchJob(jobSequenceId);
+                        taskInvoker.invokeTask(jobSequenceId);
                     } finally {
                         taskPoolLimit.release();
                     }
@@ -65,15 +68,6 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean 
             e.printStackTrace();
         }
 
-    }
-
-    protected void launchJob(String jobSequenceId) {
-        BLogicResult result = null;
-        try {
-            result = jobExecutorTemplate.executeBLogic(jobSequenceId);
-        } finally {
-            jobExecutorTemplate.afterExecute(jobSequenceId, result);
-        }
     }
 
     @Override
