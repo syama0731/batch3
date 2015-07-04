@@ -78,11 +78,6 @@ public class WorkerTemplateImpl implements JobExecutorTemplate {
         }};
         BatchJobData batchJobData = batchJobDataResolver.resolveBatchJobData(param);
 
-        // 念のためトリムする
-        if (batchJobData.getJobAppCd() != null) {
-            batchJobData.setJobAppCd(batchJobData.getJobAppCd().trim());
-        }
-
         ApplicationContext bLogicAppContext = bLogicApplicationContextResolver.resolveApplicationContext(batchJobData);
         BLogic bLogic = bLogicResolver.resolveBLogic(bLogicAppContext, batchJobData.getJobAppCd());
         BLogicParam bLogicParam = bLogicParamConverter.convertBLogicParam(batchJobData);

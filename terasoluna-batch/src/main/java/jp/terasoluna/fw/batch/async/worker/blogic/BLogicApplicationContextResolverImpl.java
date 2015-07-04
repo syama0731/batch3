@@ -3,6 +3,7 @@ package jp.terasoluna.fw.batch.async.worker.blogic;
 import jp.terasoluna.fw.batch.constants.LogId;
 import jp.terasoluna.fw.batch.executor.vo.BatchJobData;
 import jp.terasoluna.fw.logger.TLogger;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -11,6 +12,7 @@ import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -71,6 +73,10 @@ public class BLogicApplicationContextResolverImpl implements BLogicApplicationCo
      * バッチ引数のフィールド名.
      */
     protected static final String FIELD_JOB_ARG = "JobArgNm";
+    
+    protected static final String REPLACE_KEY_1 = "$";
+    protected static final String REPLACE_KEY_2 = "{";
+    protected static final String REPLACE_KEY_3 = "}";
 
     @Value("${beanDefinition.business.classpath}")
     protected String classpath;
@@ -98,6 +104,67 @@ public class BLogicApplicationContextResolverImpl implements BLogicApplicationCo
         str.append(PROPERTY_BEAN_FILENAME_SUFFIX);
 
         return str.toString();
+    }
+    
+    protected String getDirectoryReplaceRecursive(String classPath, BatchJobData jobRecord) {
+        String result = null;
+        do { 
+            result = getDirectoryReplaceOnce(classPath, jobRecord);
+        } while (!classPath.equals(result));
+    }
+    
+    protected String getDirectoryReplaceOnce(String classPath, BatchJobData jobRecord) {
+        // replaceStringの代替メソッド
+        // どうやら 
+        // beansDef/${jobAppCode}
+        // のように、beanDefinition.business.classpathで指定しておくと
+        // jobAppCode=B000001
+        // のとき、クラスパスが
+        // beansDef/B000001
+        // となる機能のようである。
+        
+        // 置換対象がない場合は終了
+        if (classPath == null || jobRecord == null) {
+            return classPath;
+        }
+        
+        int dollerIndex = classPath.indexOf(REPLACE_KEY_1);
+        int startIndex = classPath.indexOf(REPLACE_KEY_2);
+        int endIndex = classPath.indexOf(REPLACE_KEY_3);
+        
+        // $, {, }のいずれかの文字がない場合、もしくは、${ }の順でない場合は終了
+        if ( dollerIndex == -1 || 
+                startIndex == -1 || 
+                endIndex == -1 ||
+                startIndex - dollerIndex != 1 ||
+                startIndex > endIndex ||
+                endIndex - startIndex < 1) {
+            return classPath;
+        }
+        
+        // 置換対象文字列を取得
+        String replaceTargetPropertyNameTmp = classPath.substring(startIndex + 1, endIndex - 1);
+        String replaceTargetPropertyName = null;
+        boolean upperJobAppCd = REPLACE_STRING_JOB_APP_CD_UPPER.equals(replaceTargetPropertyNameTmp);
+        boolean lowerJobAppCd = REPLACE_STRING_JOB_APP_CD_LOWER.equals(replaceTargetPropertyNameTmp);
+        if (upperJobAppCd || lowerJobAppCd) {
+            replaceTargetPropertyName = REPLACE_STRING_JOB_APP_CD;
+        } else {
+            replaceTargetPropertyName = replaceTargetPropertyNameTmp;
+        }
+        
+        // 置換対象箇所の置換後文字列を取得
+        PropertyDescriptor descriptor = new PropertyDescriptor(replaceTargetPropertyName, jobRecord.getClass());
+        Method getter = descriptor.getReadMethod();
+        String replaceTargetPropertyValue = (String) getter.invoke(jobRecord);
+        if (upperJobAppCd) {
+            replaceTargetPropertyValue = replaceTargetPropertyValue.toUpperCase();
+        } else if (lowerJobAppCd) {
+            replaceTargetPropertyValue = replaceTargetPropertyValue.toLowerCase();
+        }
+        
+        // 文字列を置換する
+        return classPath.replaceAll(REPLACE_STRING_PREFIX + replaceTargetPropertyName + REPLACE_STRING_SUFFIX, replaceTargetPropertyValue)
     }
 
     /**

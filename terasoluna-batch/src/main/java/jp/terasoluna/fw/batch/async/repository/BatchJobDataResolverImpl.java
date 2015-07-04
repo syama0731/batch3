@@ -39,6 +39,14 @@ public class BatchJobDataResolverImpl implements BatchJobDataResolver {
 
     @Override
     public BatchJobData resolveBatchJobData(BatchJobManagementParam batchJobManagementParam) {
-        return systemDao.selectJob(batchJobManagementParam);
+
+        BatchJobData batchJobData = systemDao.selectJob(batchJobManagementParam);
+        
+        // 念のためトリムする
+        if (batchJobData.getJobAppCd() != null) {
+            batchJobData.setJobAppCd(batchJobData.getJobAppCd().trim());
+        }
+        
+        return batchJobData;
     }
 }
