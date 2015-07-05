@@ -12,6 +12,8 @@ import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -77,6 +79,8 @@ public class BLogicApplicationContextResolverImpl implements BLogicApplicationCo
     protected static final String REPLACE_KEY_1 = "$";
     protected static final String REPLACE_KEY_2 = "{";
     protected static final String REPLACE_KEY_3 = "}";
+    
+    protected static final String GETTER_PREFIX = "get";
 
     @Value("${beanDefinition.business.classpath}")
     protected String classpath;
@@ -106,14 +110,19 @@ public class BLogicApplicationContextResolverImpl implements BLogicApplicationCo
         return str.toString();
     }
     
-    protected String getDirectoryReplaceRecursive(String classPath, BatchJobData jobRecord) {
-        String result = null;
-        do { 
-            result = getDirectoryReplaceOnce(classPath, jobRecord);
-        } while (!classPath.equals(result));
+    protected String getDirectoryReplacedRecursive(String classPath, BatchJobData jobRecord) {
+        String before = null;
+        String after = classPath;
+        
+        while(!after.equals(before)) {
+            before = after;
+            after = getDirectoryReplacedOnce(before, jobRecord);
+        }
+        
+        return after;
     }
     
-    protected String getDirectoryReplaceOnce(String classPath, BatchJobData jobRecord) {
+    protected String getDirectoryReplacedOnce(String classPath, BatchJobData jobRecord) {
         // replaceStringの代替メソッド
         // どうやら 
         // beansDef/${jobAppCode}
@@ -154,17 +163,24 @@ public class BLogicApplicationContextResolverImpl implements BLogicApplicationCo
         }
         
         // 置換対象箇所の置換後文字列を取得
-        PropertyDescriptor descriptor = new PropertyDescriptor(replaceTargetPropertyName, jobRecord.getClass());
-        Method getter = descriptor.getReadMethod();
-        String replaceTargetPropertyValue = (String) getter.invoke(jobRecord);
-        if (upperJobAppCd) {
-            replaceTargetPropertyValue = replaceTargetPropertyValue.toUpperCase();
-        } else if (lowerJobAppCd) {
-            replaceTargetPropertyValue = replaceTargetPropertyValue.toLowerCase();
+        PropertyDescriptor descriptor = null;
+        String replaceTargetPropertyValue = null;
+        try {
+            descriptor = new PropertyDescriptor(replaceTargetPropertyName, jobRecord.getClass());
+            Method getter = descriptor.getReadMethod();
+            replaceTargetPropertyValue = (String) getter.invoke(jobRecord, (Object[]) null);
+            if (upperJobAppCd) {
+                replaceTargetPropertyValue = replaceTargetPropertyValue.toUpperCase();
+            } else if (lowerJobAppCd) {
+                replaceTargetPropertyValue = replaceTargetPropertyValue.toLowerCase();
+            }
+        } catch (IntrospectionException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            // TODO 適切なログか確認
+            LOGGER.error(LogId.EAL025012, e);
         }
         
         // 文字列を置換する
-        return classPath.replaceAll(REPLACE_STRING_PREFIX + replaceTargetPropertyName + REPLACE_STRING_SUFFIX, replaceTargetPropertyValue)
+        return classPath.replaceAll(REPLACE_STRING_PREFIX + replaceTargetPropertyName + REPLACE_STRING_SUFFIX, replaceTargetPropertyValue);
     }
 
     /**

@@ -54,7 +54,8 @@ public class AsyncJobLauncherImpl implements AsyncJobLauncher, InitializingBean 
                 @Override
                 public void run() {
                     try {
-                        taskInvoker.invokeTask(jobSequenceId);
+                        // taskInvoker.invokeTask(jobSequenceId);
+                        jobExecutorTemplate.executeWorker(jobSequenceId);
                     } finally {
                         taskPoolLimit.release();
                     }
